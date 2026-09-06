@@ -37,7 +37,6 @@
       source.buffer = buffer;
       source.connect(audioContext.destination);
 
-      // Schedule this chunk right after the previous one, instead of all at once
       const startTime = Math.max(nextPlayTime, audioContext.currentTime);
       source.start(startTime);
       nextPlayTime = startTime + buffer.duration;
@@ -52,7 +51,7 @@
       const ws = new WebSocket(`wss://agents.assemblyai.com/v1/ws?token=${token}`);
 
       ws.onopen = () => {
-        status.textContent = 'Connected — sending session config...';
+        status.textContent = 'Connected - sending session config...';
         ws.send(JSON.stringify({
           type: 'session.update',
           session: {
