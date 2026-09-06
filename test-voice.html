@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html>
+<head><title>Voice Agent Test</title></head>
+<body>
+  <h1>Voice Agent Test</h1>
+  <button id="startBtn">Start Talking</button>
+  <div id="status">Not connected</div>
+
+  <script>
+    const startBtn = document.getElementById('startBtn');
+    const status = document.getElementById('status');
+
+    let audioContext;
+    let nextPlayTime = 0;
+
+    function base64ToInt16Array(base64) {
+      const binary = atob(base64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      return new Int16Array(bytes.buffer);
+    }
+
+    function playPCM16(int16Array, sampleRate = 24000) {
+      if (!audioContext) {
+        audioContext = new AudioContext();
+        nextPlayTime = audioContext.currentTime;
+      }
+      const float32 = new Float32Array(int16Array.length);
+      for (let i = 0; i < int16Array.length; i++) {
+        float32[i] = int16Array[i] / 32768;
+      }
+      const buffer = audioContext.createBuffer(1, float32.length, sampleRate);
+      buffer.copyToChannel(float32, 0);
+      const source = audioContext.createBufferSource();
+      source.buffer = buffer;
+      source.connect(audioContext.destination);
+
+      // Schedule this chunk right after the previous one, instead of all at once
+      const startTime = Math.max(nextPlayTime, audioContext.currentTime);
+      source.start(startTime);
+      nextPlayTime = startTime + buffer.duration;
+    }
+
+    startBtn.onclick = async () => {
+      status.textContent = 'Getting token...';
+      const res = await fetch('http://localhost:8000/api/voice-token');
+      const { token } = await res.json();
+
+      status.textContent = 'Connecting...';
+      const ws = new WebSocket(`wss://agents.assemblyai.com/v1/ws?token=${token}`);
+
+      ws.onopen = () => {
+        status.textContent = 'Connected — sending session config...';
+        ws.send(JSON.stringify({
+          type: 'session.update',
+          session: {
+            system_prompt: 'You are a friendly AI interviewer. Ask the candidate to introduce themselves.',
+            greeting: 'Hi! Thanks for joining. Can you start by telling me a bit about yourself?',
+            output: { voice: 'michael' }
+          }
+        }));
+      };
+
+      ws.onmessage = (event) => {
+        const msg = JSON.parse(event.data);
+        status.textContent = 'Event: ' + msg.type;
+
+        if (msg.type === 'reply.audio') {
+          const audioBytes = base64ToInt16Array(msg.data);
+          playPCM16(audioBytes);
+        }
+      };
+
+      ws.onerror = (err) => {
+        console.error(err);
+        status.textContent = 'Error - check console';
+      };
+    };
+  </script>
+</body>
+</html>
