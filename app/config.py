@@ -31,5 +31,9 @@ class Settings:
     # Hard cap on a single interview, enforced by the token AssemblyAI issues.
     max_interview_seconds: int = int(os.getenv("MAX_INTERVIEW_SECONDS", "1500"))
 
+    # Shared secret HR staff put in the "X-HR-Key" header. Empty string disables
+    # the check (useful for tests/local dev) — set it before deploying anywhere public.
+    hr_api_key: str = os.getenv("HR_API_KEY", "")
+
 
 settings = Settings()

@@ -10,7 +10,10 @@ from contextlib import asynccontextmanager
 from datetime import timezone
 from pathlib import Path
 
-from fastapi import Depends, FastAPI, HTTPException
+import time
+from collections import defaultdict
+
+from fastapi import Depends, FastAPI, Header, HTTPException, Request
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -45,6 +48,36 @@ app = FastAPI(title="AI Interview Assistant", lifespan=lifespan)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
+
+def require_hr_key(x_hr_key: str = Header(default="")) -> None:
+    """
+    Minimal HR-side auth: a shared secret in the X-HR-Key header.
+    If HR_API_KEY isn't set (tests, local dev), this check is skipped entirely.
+    Candidate-facing routes (session/transcript/evaluate/candidate report) are
+    intentionally NOT behind this — candidates only have their interview link,
+    no shared secret, by design.
+    """
+    if settings.hr_api_key and x_hr_key != settings.hr_api_key:
+        raise HTTPException(401, "Missing or invalid X-HR-Key header.")
+
+
+# In-memory rate limit on session creation, since each call spends real
+# AssemblyAI credit. Per-process, resets on restart — fine for a hackathon demo.
+# For real deployment (multiple server instances) this would need Redis instead.
+_session_calls: dict[str, list[float]] = defaultdict(list)
+SESSION_RATE_LIMIT = 5          # max calls
+SESSION_RATE_WINDOW = 60        # per this many seconds, per IP
+
+
+def enforce_session_rate_limit(request: Request) -> None:
+    ip = request.client.host if request.client else "unknown"
+    now = time.time()
+    recent = [t for t in _session_calls[ip] if now - t < SESSION_RATE_WINDOW]
+    if len(recent) >= SESSION_RATE_LIMIT:
+        raise HTTPException(429, "Too many interview sessions started. Please wait a minute and try again.")
+    recent.append(now)
+    _session_calls[ip] = recent
 
 
 def get_interview_or_404(db: Session, interview_id: str) -> Interview:
@@ -91,7 +124,7 @@ def list_roles(db: Session = Depends(get_db)):
     return db.query(Role).order_by(Role.title).all()
 
 
-@app.post("/api/roles", response_model=RoleOut, status_code=201)
+@app.post("/api/roles", response_model=RoleOut, status_code=201, dependencies=[Depends(require_hr_key)])
 def create_role(data: RoleCreate, db: Session = Depends(get_db)):
     role = Role(title=data.title.strip(), description=data.description.strip(),
                 skills=[s.model_dump() for s in data.skills])
@@ -110,13 +143,13 @@ def create_role(data: RoleCreate, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 
-@app.get("/api/interviews", response_model=list[InterviewOut])
+@app.get("/api/interviews", response_model=list[InterviewOut], dependencies=[Depends(require_hr_key)])
 def list_interviews(db: Session = Depends(get_db)):
     rows = db.query(Interview).order_by(Interview.created_at.desc()).all()
     return [to_interview_out(i) for i in rows]
 
 
-@app.post("/api/interviews", response_model=InterviewOut, status_code=201)
+@app.post("/api/interviews", response_model=InterviewOut, status_code=201, dependencies=[Depends(require_hr_key)])
 def create_interview(data: InterviewCreate, db: Session = Depends(get_db)):
     try:
         return to_interview_out(interviews.create_interview(db, data))
@@ -129,7 +162,11 @@ def get_interview(interview_id: str, db: Session = Depends(get_db)):
     return to_interview_out(get_interview_or_404(db, interview_id))
 
 
-@app.post("/api/interviews/{interview_id}/session", response_model=SessionConfig)
+@app.post(
+    "/api/interviews/{interview_id}/session",
+    response_model=SessionConfig,
+    dependencies=[Depends(enforce_session_rate_limit)],
+)
 def start_session(interview_id: str, db: Session = Depends(get_db)):
     """POST, not GET: every call mints a new single-use token."""
     interview = get_interview_or_404(db, interview_id)
@@ -169,7 +206,7 @@ def retry_evaluation(interview_id: str, db: Session = Depends(get_db)):
     return to_interview_out(interview)
 
 
-@app.get("/api/interviews/{interview_id}/report/hr")
+@app.get("/api/interviews/{interview_id}/report/hr", dependencies=[Depends(require_hr_key)])
 def hr_report(interview_id: str, db: Session = Depends(get_db)):
     interview = get_interview_or_404(db, interview_id)
     if interview.report is None:

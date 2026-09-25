@@ -1,9 +1,24 @@
 // Thin wrapper around fetch. Every call goes to /api on the same origin.
 
+// HR staff are prompted once for the shared key; it's stashed in localStorage
+// so they don't retype it on every page load. Candidate-facing calls send it
+// too, but the backend only checks it on HR routes, so this is harmless there.
+function getHrKey() {
+  let key = localStorage.getItem('hrApiKey')
+  if (key === null) {
+    key = window.prompt('HR access key (leave blank if none set):') || ''
+    localStorage.setItem('hrApiKey', key)
+  }
+  return key
+}
+
 async function request(path, { method = 'GET', body } = {}) {
+  const headers = { 'X-HR-Key': getHrKey() }
+  if (body) headers['Content-Type'] = 'application/json'
+
   const res = await fetch(`/api${path}`, {
     method,
-    headers: body ? { 'Content-Type': 'application/json' } : undefined,
+    headers,
     body: body ? JSON.stringify(body) : undefined,
   })
   const data = await res.json().catch(() => null)

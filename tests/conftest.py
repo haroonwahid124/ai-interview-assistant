@@ -9,6 +9,9 @@ _db_file = os.path.join(tempfile.mkdtemp(), "test.db")
 os.environ["DATABASE_URL"] = f"sqlite:///{_db_file}"
 os.environ["LLM_PROVIDER"] = "mock"
 os.environ["ASSEMBLYAI_API_KEY"] = "test-key"
+# Empty disables the HR-key auth check (see app/main.py::require_hr_key) so tests
+# don't need to know the real HR_API_KEY value from .env.
+os.environ["HR_API_KEY"] = ""
 
 import pytest  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
