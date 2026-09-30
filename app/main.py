@@ -1,11 +1,4 @@
-"""
-HTTP layer. Each route validates input, calls the logic in app/interview,
-and turns known errors into sensible HTTP status codes.
-
-Note on auth: there is none. Anyone with the URL can see the HR pages.
-That's acceptable for a hackathon demo but must be added before real use
-(see docs/architecture.md).
-"""
+"""API routes."""
 from contextlib import asynccontextmanager
 from datetime import timezone
 from pathlib import Path
@@ -31,7 +24,7 @@ from app.voice.assemblyai_client import VoiceProviderError
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
-    # Creates tables on startup. Fine for a demo; a real project would use Alembic migrations.
+    # TODO: use alembic migrations instead
     Base.metadata.create_all(engine)
     with SessionLocal() as db:
         seed_roles(db)
@@ -39,35 +32,19 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(title="AI Interview Assistant", lifespan=lifespan)
-
-# No CORS middleware: the frontend is served from the same origin as the API
-# (Vite proxies /api in development). Leaving out top-level middleware also lets
-# Vercel serve the built frontend straight from its CDN.
-
-
-# ---------------------------------------------------------------------------
-# Helpers
-# ---------------------------------------------------------------------------
+# no CORS needed, frontend is on the same origin (vite proxies /api in dev)
 
 
 def require_hr_key(x_hr_key: str = Header(default="")) -> None:
-    """
-    Minimal HR-side auth: a shared secret in the X-HR-Key header.
-    If HR_API_KEY isn't set (tests, local dev), this check is skipped entirely.
-    Candidate-facing routes (session/transcript/evaluate/candidate report) are
-    intentionally NOT behind this — candidates only have their interview link,
-    no shared secret, by design.
-    """
+    # HR routes only. skipped if HR_API_KEY is empty
     if settings.hr_api_key and x_hr_key != settings.hr_api_key:
         raise HTTPException(401, "Missing or invalid X-HR-Key header.")
 
 
-# In-memory rate limit on session creation, since each call spends real
-# AssemblyAI credit. Per-process, resets on restart — fine for a hackathon demo.
-# For real deployment (multiple server instances) this would need Redis instead.
+# simple per-IP rate limit, every session costs AssemblyAI credit
 _session_calls: dict[str, list[float]] = defaultdict(list)
-SESSION_RATE_LIMIT = 5          # max calls
-SESSION_RATE_WINDOW = 60        # per this many seconds, per IP
+SESSION_RATE_LIMIT = 5
+SESSION_RATE_WINDOW = 60  # seconds
 
 
 def enforce_session_rate_limit(request: Request) -> None:
@@ -88,7 +65,7 @@ def get_interview_or_404(db: Session, interview_id: str) -> Interview:
 
 
 def as_utc(value):
-    """SQLite drops timezone info; everything is stored in UTC, so put it back."""
+    # sqlite loses the timezone, everything is stored as UTC
     if value is not None and value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value
@@ -107,11 +84,6 @@ def to_interview_out(interview: Interview) -> InterviewOut:
         overall_score=report.get("overall_score"),
         recommendation=(report.get("recommendation") or {}).get("label"),
     )
-
-
-# ---------------------------------------------------------------------------
-# Roles
-# ---------------------------------------------------------------------------
 
 
 @app.get("/api/health")
@@ -136,11 +108,6 @@ def create_role(data: RoleCreate, db: Session = Depends(get_db)):
         raise HTTPException(409, f"A role called '{data.title}' already exists.")
     db.refresh(role)
     return role
-
-
-# ---------------------------------------------------------------------------
-# Interviews
-# ---------------------------------------------------------------------------
 
 
 @app.get("/api/interviews", response_model=list[InterviewOut], dependencies=[Depends(require_hr_key)])
@@ -168,7 +135,7 @@ def get_interview(interview_id: str, db: Session = Depends(get_db)):
     dependencies=[Depends(enforce_session_rate_limit)],
 )
 def start_session(interview_id: str, db: Session = Depends(get_db)):
-    """POST, not GET: every call mints a new single-use token."""
+    # POST because each call creates a new token
     interview = get_interview_or_404(db, interview_id)
     try:
         return interviews.start_voice_session(interview)
@@ -187,7 +154,7 @@ def submit_transcript(interview_id: str, data: TranscriptIn, db: Session = Depen
     except interviews.InterviewError as exc:
         raise HTTPException(422, str(exc))
     except EvaluationError as exc:
-        # The transcript is saved, so HR can retry scoring later.
+        # transcript is already saved so scoring can be retried
         raise HTTPException(502, f"Your answers were saved, but scoring failed: {exc}")
     return to_interview_out(interview)
 
@@ -222,12 +189,7 @@ def candidate_report(interview_id: str, db: Session = Depends(get_db)):
     return candidate_view(interview.report)
 
 
-# ---------------------------------------------------------------------------
-# Frontend
-# ---------------------------------------------------------------------------
-# `npm run build` writes the React app to frontend/dist. Mounted last so API
-# routes always win. On Vercel the files are promoted to the CDN at build time.
-
+# serve the built react app (npm run build). mounted last so /api routes come first
 FRONTEND_DIST = Path(__file__).resolve().parent.parent / "frontend" / "dist"
 if (FRONTEND_DIST / "index.html").is_file():
     app.mount("/", StaticFiles(directory=FRONTEND_DIST, html=True), name="frontend")

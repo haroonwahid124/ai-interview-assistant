@@ -1,4 +1,4 @@
-// Criterion scores as simple bars. Evidence is optional (HR view only).
+// score bars, evidence only shown for HR
 export default function ScoreBars({ criteria, showEvidence = false }) {
   return (
     <dl className="scores">

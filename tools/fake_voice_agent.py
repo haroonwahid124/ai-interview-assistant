@@ -1,18 +1,6 @@
-"""
-A fake AssemblyAI Voice Agent for offline development.
-
-It speaks the same WebSocket protocol (session.update -> session.ready ->
-input.audio -> transcript.user -> reply.* -> tool.call -> session.end ...)
-but plays silence and uses scripted answers instead of real speech.
-Use it to build and debug the UI without spending API credits.
-
-Run:
-    python tools/fake_voice_agent.py
-and start the API with:
-    ASSEMBLYAI_WS_URL=ws://localhost:8765 uvicorn app.main:app --reload
-
-Every ~1.5 seconds of microphone audio counts as one "answer".
-"""
+# fake AssemblyAI voice agent for testing without credits.
+# plays silence and sends scripted answers (every ~1.5s of mic audio = 1 answer)
+# run: python tools/fake_voice_agent.py  and set ASSEMBLYAI_WS_URL=ws://localhost:8765
 import asyncio
 import base64
 import json

@@ -1,19 +1,8 @@
-"""
-Pydantic schemas: the shapes of data going in and out of the API,
-plus the exact JSON shape we require from the LLM.
-
-Validating the LLM's output with the same tool we use to validate
-HTTP requests is the key trick: if the model returns a score of 7 or
-forgets a field, we find out immediately instead of storing garbage.
-"""
+# API request/response models + the format the LLM has to return
 from datetime import datetime
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, EmailStr, Field, field_validator
-
-# ---------------------------------------------------------------------------
-# Roles
-# ---------------------------------------------------------------------------
 
 
 class SkillRequirement(BaseModel):
@@ -52,11 +41,6 @@ class RoleOut(BaseModel):
     skills: list[SkillRequirement]
 
 
-# ---------------------------------------------------------------------------
-# Interviews
-# ---------------------------------------------------------------------------
-
-
 class InterviewCreate(BaseModel):
     role_id: int
     candidate_name: str = Field(min_length=1, max_length=120)
@@ -86,18 +70,12 @@ class TranscriptIn(BaseModel):
 
 
 class SessionConfig(BaseModel):
-    """Everything the browser needs to open the voice session."""
-
     token: str
     ws_url: str
     session: dict
 
 
-# ---------------------------------------------------------------------------
-# What the LLM must return
-# ---------------------------------------------------------------------------
-
-
+# LLM output
 class CriterionScore(BaseModel):
     score: int = Field(ge=1, le=5, description="1 = very weak, 3 = meets expectations, 5 = exceptional")
     evidence: str = Field(description="Short quote or paraphrase from the candidate that justifies the score")

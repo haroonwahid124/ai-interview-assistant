@@ -1,10 +1,4 @@
-"""
-Interview lifecycle: create -> start voice session -> save transcript -> evaluate.
-
-These functions hold the business logic; main.py only translates HTTP
-requests into calls to them. That split keeps the routes thin and lets
-tests call the logic directly.
-"""
+# create -> start voice session -> save transcript -> evaluate
 from sqlalchemy.orm import Session
 
 from app.analysis.llm_client import EvaluationError, get_evaluator
@@ -17,7 +11,7 @@ from app.voice.assemblyai_client import get_voice_agent_token
 
 
 class InterviewError(Exception):
-    """Raised for problems the caller should show to the user (bad state, missing data)."""
+    pass
 
 
 def create_interview(db: Session, data: InterviewCreate) -> Interview:
@@ -66,7 +60,7 @@ def save_transcript(db: Session, interview: Interview, turns: list[TranscriptTur
 
 
 def evaluate_interview(db: Session, interview: Interview) -> Interview:
-    """Score a saved transcript. Safe to call again if a previous attempt failed."""
+    # also used for retrying after a failed attempt
     if not interview.transcript:
         raise InterviewError("There is no transcript to evaluate yet.")
 

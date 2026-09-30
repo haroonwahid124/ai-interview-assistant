@@ -1,11 +1,5 @@
-"""
-Database tables.
-
-Design choice: skills, transcripts and reports are stored as JSON columns
-rather than separate tables. For a hackathon-sized app this keeps the schema
-small, and a report is a snapshot anyway: if HR edits a role next week, old
-reports should still show what the candidate was measured against.
-"""
+# skills, transcript and report are JSON columns to keep it simple.
+# reports are snapshots so editing a role later doesn't change old reports.
 import uuid
 from datetime import datetime, timezone
 
@@ -33,15 +27,15 @@ class Role(Base):
 
 
 class InterviewStatus:
-    CREATED = "created"        # link generated, candidate hasn't finished yet
-    COMPLETED = "completed"    # transcript scored, report ready
-    FAILED = "failed"          # transcript saved but scoring failed (can be retried)
+    CREATED = "created"
+    COMPLETED = "completed"
+    FAILED = "failed"  # scoring failed, can retry
 
 
 class Interview(Base):
     __tablename__ = "interviews"
 
-    # A random UUID rather than 1, 2, 3... so candidate links can't be guessed.
+    # uuid so interview links can't be guessed
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     role_id: Mapped[int] = mapped_column(ForeignKey("roles.id"))
     candidate_name: Mapped[str] = mapped_column(String(120))
@@ -50,7 +44,7 @@ class Interview(Base):
 
     transcript: Mapped[list] = mapped_column(JSON, default=list)  # [{"role", "text", "at"}]
     evaluation: Mapped[dict | None] = mapped_column(JSON, nullable=True)  # raw LLM output
-    report: Mapped[dict | None] = mapped_column(JSON, nullable=True)      # computed results
+    report: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     error: Mapped[str] = mapped_column(Text, default="")
 
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)

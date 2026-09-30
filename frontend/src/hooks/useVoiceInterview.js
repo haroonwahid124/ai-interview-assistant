@@ -1,20 +1,12 @@
-// All the voice logic lives here, separate from the UI.
-//
-// Flow:
-//   1. ask for the microphone (before spending a single-use token)
-//   2. POST /session -> { token, ws_url, session }
-//   3. open the WebSocket, send session.update with the interview config
-//   4. on session.ready, start streaming mic audio as input.audio
-//   5. collect transcript.user / transcript.agent into `turns`
-//   6. when the agent calls end_interview (or the candidate clicks End),
-//      send session.end, wait for session.ended, then POST the transcript
+// voice interview logic
+// mic -> get token -> websocket -> stream audio -> collect transcript -> submit
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { base64ToFloat32, int16ToBase64 } from '../audio/pcm'
 
 const SAMPLE_RATE = 24000
-const GOODBYE_TIMEOUT_MS = 10000 // if the agent never says goodbye after end_interview
-const SUBMIT_FALLBACK_MS = 5000 // if session.ended never arrives
+const GOODBYE_TIMEOUT_MS = 10000
+const SUBMIT_FALLBACK_MS = 5000 // in case session.ended never comes
 
 export function useVoiceInterview(interviewId) {
   // idle | connecting | live | ending | submitting | done | error
@@ -24,7 +16,7 @@ export function useVoiceInterview(interviewId) {
   const [turns, setTurns] = useState([])
   const [error, setError] = useState('')
 
-  // Values the WebSocket callbacks need to read and change without re-rendering.
+  // refs so the websocket callbacks see current values
   const r = useRef(null)
   if (r.current === null) {
     r.current = {
@@ -44,7 +36,7 @@ export function useVoiceInterview(interviewId) {
     setTurns(r.current.turns)
   }
 
-  // ---------------- audio out ----------------
+  // audio out
   const play = (base64) => {
     const { ctx } = r.current
     const samples = base64ToFloat32(base64)
@@ -53,7 +45,7 @@ export function useVoiceInterview(interviewId) {
     const src = ctx.createBufferSource()
     src.buffer = buffer
     src.connect(ctx.destination)
-    // Schedule chunks back to back so playback is gapless.
+    // queue chunks back to back so there's no gaps
     const start = Math.max(r.current.nextPlayTime, ctx.currentTime)
     src.start(start)
     r.current.nextPlayTime = start + buffer.duration
@@ -74,7 +66,7 @@ export function useVoiceInterview(interviewId) {
     return ctx ? Math.max(0, (nextPlayTime - ctx.currentTime) * 1000) : 0
   }
 
-  // ---------------- audio in ----------------
+  // mic in
   const startStreaming = async () => {
     const { ctx, micStream } = r.current
     await ctx.audioWorklet.addModule('/mic-processor.js')
@@ -86,7 +78,7 @@ export function useVoiceInterview(interviewId) {
         ws.send(JSON.stringify({ type: 'input.audio', audio: int16ToBase64(e.data) }))
       }
     }
-    source.connect(node) // not connected to the speakers, so you don't hear yourself
+    source.connect(node) // not to speakers or you hear yourself
     r.current.micNode = node
   }
 
@@ -97,7 +89,6 @@ export function useVoiceInterview(interviewId) {
     r.current.micStream = null
   }
 
-  // ---------------- lifecycle ----------------
   const cleanup = () => {
     r.current.timers.forEach(clearTimeout)
     r.current.timers = []
@@ -126,7 +117,7 @@ export function useVoiceInterview(interviewId) {
     } catch (e) {
       setError(e.message)
       setPhase('error')
-      // 502 means the transcript was saved but scoring failed: HR can retry, so don't resubmit.
+      // 502 = saved but scoring failed, don't resubmit
       if (e.status !== 502) r.current.submitted = false
     }
   }, [interviewId])
@@ -138,8 +129,7 @@ export function useVoiceInterview(interviewId) {
     stopMic()
     setPhase('ending')
     if (ws?.readyState === WebSocket.OPEN) {
-      // Always send session.end rather than just closing: a bare close leaves
-      // a billable 30-second resume window open.
+      // send session.end, just closing keeps a paid 30s resume window open
       ws.send(JSON.stringify({ type: 'session.end' }))
       later(submit, SUBMIT_FALLBACK_MS)
     } else {
@@ -161,7 +151,7 @@ export function useVoiceInterview(interviewId) {
         break
 
       case 'input.speech.started':
-        stopPlayback() // candidate interrupted: stop the interviewer talking
+        stopPlayback() // candidate interrupted
         setSpeaker('candidate')
         break
 
@@ -186,7 +176,7 @@ export function useVoiceInterview(interviewId) {
         break
 
       case 'tool.call':
-        // Don't reply yet: AssemblyAI wants tool results after reply.done.
+        // tool result has to be sent after reply.done
         state.pendingTools.push({ call_id: msg.call_id, result: JSON.stringify({ ok: true }) })
         if (msg.name === 'end_interview') state.endStage = 'tool_called'
         break
@@ -199,12 +189,11 @@ export function useVoiceInterview(interviewId) {
         later(() => setSpeaker((s) => (s === 'interviewer' ? 'none' : s)), msUntilPlaybackEnds())
 
         if (state.endStage === 'tool_called') {
-          // The agent usually says goodbye after the tool result. Wait for that reply,
-          // but don't wait forever.
+          // wait for the goodbye, with a timeout
           state.endStage = 'waiting_goodbye'
           later(endSession, msUntilPlaybackEnds() + GOODBYE_TIMEOUT_MS)
         } else if (state.endStage === 'waiting_goodbye') {
-          later(endSession, msUntilPlaybackEnds() + 300) // let the goodbye finish playing
+          later(endSession, msUntilPlaybackEnds() + 300)
         }
         break
       }
@@ -229,7 +218,7 @@ export function useVoiceInterview(interviewId) {
     setError('')
     setPhase('connecting')
 
-    // Created inside the click handler, so the browser allows audio playback.
+    // has to be created on click or the browser blocks audio
     state.ctx = new AudioContext({ sampleRate: SAMPLE_RATE })
     state.nextPlayTime = state.ctx.currentTime
 
@@ -261,7 +250,7 @@ export function useVoiceInterview(interviewId) {
       state.ws = null
       if (state.submitted) return
       if (state.turns.length > 0) {
-        submit() // connection dropped mid-interview: keep what we have
+        submit() // connection dropped, submit what we have
       } else {
         cleanup()
         setError(event.code === 1006
@@ -272,7 +261,7 @@ export function useVoiceInterview(interviewId) {
     }
   }, [interviewId, handleEvent, submit])
 
-  // If the candidate navigates away, end the session properly.
+  // end the session if they leave the page
   useEffect(() => () => {
     const { ws } = r.current
     if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'session.end' }))

@@ -1,4 +1,4 @@
-// Feedback for the candidate: no hiring decision, framed around growth.
+// candidate feedback (no hiring decision shown)
 import { useEffect, useState } from 'react'
 import { api } from '../api'
 import RoleFitLadder from '../components/RoleFitLadder.jsx'

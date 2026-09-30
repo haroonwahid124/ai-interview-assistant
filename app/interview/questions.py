@@ -1,12 +1,5 @@
-"""
-Turns a role into instructions for the voice agent.
-
-The agent is itself an LLM running inside AssemblyAI. We don't let it
-improvise the whole interview: we give it a fixed question plan built from
-the role's most important skills, so every candidate for the same role
-gets a comparable interview. That consistency is what makes scores fair
-to compare.
-"""
+# voice agent prompt. fixed question plan so every candidate for a role
+# gets the same interview
 from app.models import Role
 
 END_INTERVIEW_TOOL = {
@@ -33,7 +26,7 @@ MAX_SKILL_QUESTIONS = 3
 
 
 def top_skills(role: Role, limit: int = MAX_SKILL_QUESTIONS) -> list[dict]:
-    """Critical skills first, then by weight."""
+    # critical first, then by weight
     ranked = sorted(role.skills, key=lambda s: (not s.get("critical", False), -s.get("weight", 1)))
     return ranked[:limit]
 

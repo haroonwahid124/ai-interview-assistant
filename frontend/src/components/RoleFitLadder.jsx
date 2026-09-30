@@ -1,6 +1,4 @@
-// The role-fit chart: one track per role, 0-100%, with the "training" (50%)
-// and "suitable" (75%) thresholds drawn as zones so the category is readable
-// at a glance, not just from the label.
+// role fit bars with the 50% / 75% zones shown
 const TONE = { best_fit: 'best', suitable: 'suitable', training: 'training', not_suitable: 'not' }
 
 export default function RoleFitLadder({ fits, appliedRole, showGaps = true }) {

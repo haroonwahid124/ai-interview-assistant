@@ -1,4 +1,3 @@
-// HR form for defining a role and the skills it's measured against.
 import { useState } from 'react'
 import { api } from '../api'
 import { ErrorNote } from '../components/Status.jsx'

@@ -1,5 +1,4 @@
-// A tiny hash router: #/interview/abc -> InterviewRoom with id "abc".
-// Hash URLs work on any static host with no server rewrite rules.
+// simple hash router, e.g. #/interview/abc
 import { useEffect, useState } from 'react'
 import Dashboard from './pages/Dashboard.jsx'
 import NewRole from './pages/NewRole.jsx'

@@ -1,30 +1,40 @@
-// Thin wrapper around fetch. Every call goes to /api on the same origin.
+// fetch wrapper for /api
+// sends the saved HR key if there is one, asks for it on a 401
+function storedHrKey() {
+  return localStorage.getItem('hrApiKey') || ''
+}
 
-// HR staff are prompted once for the shared key; it's stashed in localStorage
-// so they don't retype it on every page load. Candidate-facing calls send it
-// too, but the backend only checks it on HR routes, so this is harmless there.
-function getHrKey() {
-  let key = localStorage.getItem('hrApiKey')
-  if (key === null) {
-    key = window.prompt('HR access key (leave blank if none set):') || ''
-    localStorage.setItem('hrApiKey', key)
-  }
+function askForHrKey() {
+  const key = window.prompt('HR access key:')
+  if (key === null) return null // cancelled
+  localStorage.setItem('hrApiKey', key)
   return key
 }
 
-async function request(path, { method = 'GET', body } = {}) {
-  const headers = { 'X-HR-Key': getHrKey() }
+async function send(path, { method, body }) {
+  const headers = {}
+  const key = storedHrKey()
+  if (key) headers['X-HR-Key'] = key
   if (body) headers['Content-Type'] = 'application/json'
-
-  const res = await fetch(`/api${path}`, {
+  return fetch(`/api${path}`, {
     method,
     headers,
     body: body ? JSON.stringify(body) : undefined,
   })
+}
+
+async function request(path, { method = 'GET', body } = {}) {
+  let res = await send(path, { method, body })
+
+  // wrong/missing HR key, ask and retry once
+  if (res.status === 401 && askForHrKey() !== null) {
+    res = await send(path, { method, body })
+  }
+
   const data = await res.json().catch(() => null)
   if (!res.ok) {
     const detail = data?.detail
-    // FastAPI validation errors come back as a list of problems.
+    // fastapi validation errors are a list
     const message = Array.isArray(detail)
       ? detail.map((d) => `${d.loc.slice(1).join('.')}: ${d.msg}`).join('; ')
       : detail || `Request failed with status ${res.status}`

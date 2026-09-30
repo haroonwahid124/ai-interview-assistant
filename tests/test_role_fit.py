@@ -65,7 +65,7 @@ def test_no_best_fit_when_nothing_is_suitable():
     assert ranked[0].category != BEST_FIT
 
 
-# --- hiring recommendation rules -------------------------------------------
+# recommendation rules
 
 def good_fit():
     return fit_for_role(1, "Backend", BACKEND, {"rest apis": 4, "databases & sql": 4})

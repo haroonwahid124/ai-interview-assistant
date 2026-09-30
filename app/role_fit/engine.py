@@ -1,21 +1,6 @@
-"""
-Role-fit engine: how well does the candidate match each role?
-
-For every skill a role needs we compare the level the candidate showed with
-the level the role requires:
-
-    coverage = min(candidate_level / required_level, 1)
-
-A role's fit is the weighted average coverage, as a percentage. Exceeding a
-requirement doesn't earn extra credit, so strength in one area can't hide a
-gap in another.
-
-Categories:
-    best_fit      the single highest-scoring role that is also "suitable"
-    suitable      fit >= 75% and no critical gaps
-    training      fit >= 50%, or >= 75% but with a critical gap
-    not_suitable  fit < 50%
-"""
+# role fit = weighted avg of min(candidate_level / required_level, 1) per skill
+# suitable: >= 75% and no critical gaps, training: >= 50%, else not suitable
+# best_fit is the top suitable role
 from dataclasses import asdict, dataclass, field
 
 SUITABLE_THRESHOLD = 75.0
@@ -61,10 +46,7 @@ class RoleFit:
 
 
 def fit_for_role(role_id: int, role_title: str, requirements: list[dict], levels: dict[str, int]) -> RoleFit:
-    """
-    requirements: the role's skills, e.g. [{"name": "SQL", "weight": 2, "required_level": 4, "critical": True}]
-    levels: candidate skill levels keyed by lower-case skill name, e.g. {"sql": 3}
-    """
+    # levels is keyed by lowercase skill name, e.g. {"sql": 3}
     total_weight = 0.0
     weighted_coverage = 0.0
     gaps: list[SkillGap] = []
@@ -81,7 +63,7 @@ def fit_for_role(role_id: int, role_title: str, requirements: list[dict], levels
             gaps.append(SkillGap(req["name"], have, required, bool(req.get("critical", False))))
 
     fit = round(weighted_coverage / total_weight * 100, 1) if total_weight else 0.0
-    # Biggest shortfalls first, critical ones before the rest.
+    # critical gaps first, then biggest gap
     gaps.sort(key=lambda g: (not g.critical, g.candidate_level - g.required_level))
 
     has_critical_gap = any(g.critical for g in gaps)
@@ -96,12 +78,8 @@ def fit_for_role(role_id: int, role_title: str, requirements: list[dict], levels
 
 
 def rank_roles(roles: list[dict], levels: dict[str, int]) -> list[RoleFit]:
-    """
-    roles: [{"id", "title", "skills"}]
-    Returns every role sorted best first, with the top suitable role marked best_fit.
-    """
     results = [fit_for_role(r["id"], r["title"], r["skills"], levels) for r in roles]
-    # Suitable roles first, then by fit score. Title breaks ties so output is stable.
+    # sort by category, then score, then title
     order = {SUITABLE: 0, TRAINING: 1, NOT_SUITABLE: 2}
     results.sort(key=lambda r: (order[r.category], -r.fit_score, r.role_title))
 

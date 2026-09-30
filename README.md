@@ -92,6 +92,7 @@ answer, so the whole flow runs offline. Mock scores are placeholders.
 | `LLM_API_KEY`, `LLM_MODEL` | Claude API key and model |
 | `DATABASE_URL` | SQLite or Postgres URL |
 | `MAX_INTERVIEW_SECONDS` | Hard cap on one voice session |
+| `HR_API_KEY` | Password for the HR pages (leave empty to turn it off) |
 
 ## Tests
 ```bash
@@ -120,29 +121,10 @@ docker compose up --build
 Open http://localhost:8000. This runs the app with a Postgres container.
 
 ## Limitations
-No login yet (HR pages are open to anyone with the URL), no rate limiting, tables created
-on startup instead of migrations, and no data retention policy. See
+HR pages are protected by one shared password (`HR_API_KEY`), not real user accounts. The
+rate limit is in memory only, tables are created on startup instead of migrations, and
+there's no data retention policy. See
 [`docs/architecture.md`](docs/architecture.md#known-limitations-before-real-world-use).
-
-## Team
-| Name | Role | Focus |
-|---|---|---|
-| ... | ... | Voice pipeline / Scoring & role-fit / UI |
-
-## Contributing
-- Branch naming: `feature/<short-desc>`, `fix/<short-desc>`
-- PRs require 1 review before merge
-- Conventional commits (`feat:`, `fix:`, `docs:`, `refactor:`)
-
-## Submission checklist (lablab.ai)
-- [ ] Project title, short + long description
-- [ ] Technology and category tags
-- [ ] Cover image (PNG/JPG, 16:9)
-- [ ] Demo video (MP4, under 5 min)
-- [ ] Slide deck (PDF)
-- [ ] Public GitHub repository (this repo)
-- [ ] Live demo URL
-- [ ] Submitted before Sep 30, 2026, 15:00 UTC
 
 ## Hackathon links
 - Hackathon: https://lablab.ai/ai-hackathons/assemblyai-voice-agent-hackathon

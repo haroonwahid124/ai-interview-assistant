@@ -1,6 +1,4 @@
-// AudioWorklet: runs on the browser's audio thread.
-// Collects microphone samples (Float32, -1..1) and posts 50 ms chunks of
-// Int16 PCM to the main thread, which sends them to AssemblyAI.
+// audio worklet: turns mic input into 50ms PCM16 chunks
 const CHUNK_SAMPLES = 1200 // 50 ms at 24 kHz
 
 class MicProcessor extends AudioWorkletProcessor {
@@ -22,7 +20,7 @@ class MicProcessor extends AudioWorkletProcessor {
         this.length = 0
       }
     }
-    return true // keep the processor alive
+    return true
   }
 }
 

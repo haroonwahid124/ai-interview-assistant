@@ -1,5 +1,4 @@
-// AssemblyAI sends and receives raw PCM16 audio as base64 text inside JSON.
-// These helpers convert between that format and what the Web Audio API uses.
+// convert between base64 PCM16 (AssemblyAI) and Web Audio floats
 
 export function int16ToBase64(int16) {
   const bytes = new Uint8Array(int16.buffer, int16.byteOffset, int16.byteLength)

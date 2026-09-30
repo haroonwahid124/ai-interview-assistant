@@ -1,4 +1,4 @@
-// HR home: invite a candidate, see interviews, see roles.
+// HR dashboard
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api'
 import { ErrorNote, Loading, RecommendationBadge, StatusText, formatDate } from '../components/Status.jsx'

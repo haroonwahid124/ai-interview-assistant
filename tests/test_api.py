@@ -1,4 +1,4 @@
-"""End-to-end API tests using the mock evaluator (no network calls)."""
+# API tests (mock evaluator, no network)
 from app.schemas import SessionConfig
 
 STRONG_TRANSCRIPT = [

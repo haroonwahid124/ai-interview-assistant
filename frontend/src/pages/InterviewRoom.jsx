@@ -1,4 +1,4 @@
-// The candidate's page: consent, the live voice interview, then a link to results.
+// candidate interview page
 import { useEffect, useRef, useState } from 'react'
 import { api } from '../api'
 import { ErrorNote, Loading } from '../components/Status.jsx'

@@ -1,9 +1,4 @@
-"""
-All configuration comes from environment variables (or a local .env file).
-
-Keeping settings in one place means the rest of the code never calls
-os.getenv directly, which makes it easy to see what the app depends on.
-"""
+"""Settings, read from env vars / .env"""
 import os
 from dataclasses import dataclass
 
@@ -14,25 +9,22 @@ load_dotenv()
 
 @dataclass(frozen=True)
 class Settings:
-    # AssemblyAI Voice Agent (speech-to-text + agent LLM + text-to-speech in one socket)
+    # AssemblyAI voice agent
     assemblyai_api_key: str = os.getenv("ASSEMBLYAI_API_KEY", "")
     assemblyai_ws_url: str = os.getenv("ASSEMBLYAI_WS_URL", "wss://agents.assemblyai.com/v1/ws")
     voice: str = os.getenv("VOICE_AGENT_VOICE", "michael")
 
-    # The LLM that scores the finished transcript.
-    # "mock" needs no API key and is used for tests and offline development.
+    # scoring LLM, "mock" works without a key
     llm_provider: str = os.getenv("LLM_PROVIDER", "mock")
     llm_api_key: str = os.getenv("LLM_API_KEY", "")
-    llm_model: str = os.getenv("LLM_MODEL", "claude-sonnet-5")
+    llm_model: str = os.getenv("LLM_MODEL", "claude-sonnet-5-5")
 
-    # SQLite locally; set a Postgres URL in production (Vercel functions have no persistent disk).
+    # sqlite locally, postgres on vercel
     database_url: str = os.getenv("DATABASE_URL", "sqlite:///./interview.db")
 
-    # Hard cap on a single interview, enforced by the token AssemblyAI issues.
     max_interview_seconds: int = int(os.getenv("MAX_INTERVIEW_SECONDS", "1500"))
 
-    # Shared secret HR staff put in the "X-HR-Key" header. Empty string disables
-    # the check (useful for tests/local dev) — set it before deploying anywhere public.
+    # X-HR-Key header for HR routes, leave empty to turn off
     hr_api_key: str = os.getenv("HR_API_KEY", "")
 
 

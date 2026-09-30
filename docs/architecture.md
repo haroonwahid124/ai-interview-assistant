@@ -112,9 +112,9 @@ technical knowledge 35%, problem solving 25%, communication 20%, behavioural 20%
 
 ## Known limitations (before real-world use)
 
-- **No authentication.** Anyone with the URL can open HR pages. Add login and roles.
+- **Basic auth only.** HR pages use one shared password (`HR_API_KEY`). Add proper login and roles.
 - **Tables are created on startup.** Use Alembic migrations for schema changes.
-- **No rate limiting** on session creation, which spends AssemblyAI credit.
+- **Rate limiting is in memory**, per server process. Use Redis if running more than one instance.
 - **No data retention policy.** Transcripts are personal data under UK GDPR; decide how
   long to keep them and let candidates request deletion.
 - **Scoring runs inside the request.** Fine for a demo; a queue would be sturdier.

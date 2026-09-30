@@ -1,11 +1,5 @@
-"""
-Starter roles, matching the example in the project brief:
-Software Engineer, Backend Developer, Data Engineer, UI/UX Designer.
-
-Skill names are shared across roles on purpose ("Databases & SQL" appears in
-two roles), so one interview can be compared against every role.
-Keywords are only used by the mock evaluator.
-"""
+# starter roles. skills are shared between roles so we can compare across them.
+# keywords are only for the mock evaluator
 from sqlalchemy.orm import Session
 
 from app.models import Role
@@ -75,7 +69,7 @@ STARTER_ROLES = [
 
 
 def seed_roles(db: Session) -> None:
-    """Insert the starter roles only if the table is empty."""
+    # only if there are no roles yet
     if db.query(Role).first() is not None:
         return
     db.add_all(Role(**data) for data in STARTER_ROLES)

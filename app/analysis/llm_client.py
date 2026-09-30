@@ -1,19 +1,7 @@
 """
-Turns a finished transcript into a validated `Evaluation`.
-
-Two implementations share one interface:
-
-* AnthropicEvaluator – asks Claude to fill in the Evaluation schema.
-  We use "forced tool use": we describe a tool whose input is our schema and
-  tell the model it *must* call it. The tool's input is then guaranteed to be
-  JSON in (roughly) our shape, and Pydantic checks the details.
-
-* MockEvaluator – a keyword heuristic with no API calls. It's only for tests
-  and for building the UI without spending credits. Its scores mean nothing.
-
-The LLM only judges what was said. Turning those judgements into an overall
-score, role-fit and recommendation happens in plain Python (scoring.py,
-role_fit/engine.py, reports/generator.py), so the maths is consistent and testable.
+Scores a transcript.
+AnthropicEvaluator uses Claude (forced tool call so we get JSON back).
+MockEvaluator is just keyword matching for tests / offline dev.
 """
 import re
 from typing import Protocol
@@ -33,17 +21,8 @@ class Evaluator(Protocol):
     def evaluate(self, applied_role: Role, all_roles: list[Role], transcript: list[dict]) -> Evaluation: ...
 
 
-# ---------------------------------------------------------------------------
-# Shared helpers
-# ---------------------------------------------------------------------------
-
-
 def all_skill_names(roles: list[Role]) -> list[str]:
-    """Every skill across every role, de-duplicated case-insensitively.
-
-    We score the candidate against *all* of them (not just the applied role's)
-    so the role-fit engine can compare them with other roles too.
-    """
+    # skills from every role (no duplicates) so we can check fit for other roles too
     seen: dict[str, str] = {}
     for role in roles:
         for skill in role.skills:
@@ -57,11 +36,7 @@ def format_transcript(transcript: list[dict]) -> str:
 
 
 def normalise_skills(evaluation: Evaluation, skill_names: list[str]) -> Evaluation:
-    """Make the skills list contain exactly our skill names, once each.
-
-    LLMs sometimes change capitalisation, invent a skill, or skip one.
-    Unknown skills are dropped and missing ones are added with level 0.
-    """
+    # the model sometimes renames/skips/invents skills, so fix the list up
     canonical = {name.lower(): name for name in skill_names}
     by_name: dict[str, SkillEvidence] = {}
     for item in evaluation.skills:
@@ -74,8 +49,7 @@ def normalise_skills(evaluation: Evaluation, skill_names: list[str]) -> Evaluati
 
 
 def _inline_refs(schema: dict) -> dict:
-    """Pydantic puts nested models under $defs and points to them with $ref.
-    Inlining them gives the model one flat, self-contained schema to follow."""
+    # replace pydantic's $ref/$defs with the actual schema
     defs = schema.pop("$defs", {})
 
     def resolve(node):
@@ -89,10 +63,6 @@ def _inline_refs(schema: dict) -> dict:
 
     return resolve(schema)
 
-
-# ---------------------------------------------------------------------------
-# Claude
-# ---------------------------------------------------------------------------
 
 SYSTEM_PROMPT = """You are an experienced, fair technical recruiter assessing a first-round
 screening interview. You will receive the job requirements and an automatic speech-to-text transcript.
@@ -118,7 +88,7 @@ class AnthropicEvaluator:
     def __init__(self) -> None:
         if not settings.llm_api_key:
             raise EvaluationError("LLM_API_KEY is not set, but LLM_PROVIDER is 'anthropic'.")
-        from anthropic import Anthropic  # imported here so mock mode doesn't need the package
+        from anthropic import Anthropic
 
         self.client = Anthropic(api_key=settings.llm_api_key, timeout=90, max_retries=2)
         self.tool = {
@@ -154,7 +124,7 @@ Rate the candidate's demonstrated level (0-5) for every one of these skills, usi
         skill_names = all_skill_names(all_roles)
         messages = [{"role": "user", "content": self._build_prompt(applied_role, skill_names, transcript)}]
 
-        # One retry: if validation fails, show the model its mistake and ask again.
+        # if validation fails, send the error back and try once more
         for attempt in range(2):
             try:
                 response = self.client.messages.create(
@@ -191,13 +161,10 @@ Rate the candidate's demonstrated level (0-5) for every one of these skills, usi
                         ],
                     },
                 ]
-        raise EvaluationError("Evaluation failed.")  # unreachable, keeps type checkers happy
+        raise EvaluationError("Evaluation failed.")
 
 
-# ---------------------------------------------------------------------------
-# Mock (no API calls)
-# ---------------------------------------------------------------------------
-
+# mock evaluator, no API calls
 REASONING_WORDS = {"because", "so", "first", "then", "trade-off", "tradeoff", "instead", "why", "approach", "measure"}
 BEHAVIOUR_WORDS = {"team", "we", "feedback", "learned", "disagreed", "listened", "compromise", "mentor", "together"}
 
@@ -220,7 +187,7 @@ class MockEvaluator:
         words = _words(text)
         word_set = set(words)
 
-        # Skill level = how many of the skill's keywords were mentioned (capped at 5).
+        # level = number of keywords mentioned, max 5
         skill_defs: dict[str, dict] = {}
         for role in all_roles:
             for s in role.skills:

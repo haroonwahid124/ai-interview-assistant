@@ -1,5 +1,3 @@
-// Small shared pieces used across pages.
-
 export function Loading({ what = 'Loading' }) {
   return <p className="muted" role="status">{what}…</p>
 }

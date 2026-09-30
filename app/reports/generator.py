@@ -1,10 +1,5 @@
-"""
-Builds the stored report and the two views of it (HR and candidate).
-
-The hiring recommendation is a small set of explicit rules, not an LLM
-opinion. HR can read exactly why a candidate got "Consider" rather than
-"Strongly recommend", and the same inputs always give the same answer.
-"""
+# builds the report + HR/candidate views.
+# recommendation uses fixed rules (not the LLM) so it's consistent
 from datetime import datetime, timezone
 
 from app.analysis.scoring import CRITERIA_LABELS, CRITERIA_WEIGHTS, criterion_percent, overall_score
@@ -27,7 +22,6 @@ ADVISORY_NOTICE = (
 
 
 def recommend(overall: float, applied_fit: RoleFit, candidate_turns: int) -> tuple[str, list[str]]:
-    """Return (recommendation code, human-readable reasons)."""
     reasons: list[str] = []
 
     if candidate_turns < MIN_CANDIDATE_TURNS:
@@ -105,8 +99,7 @@ def hr_view(report: dict, transcript: list[dict]) -> dict:
 
 
 def candidate_view(report: dict) -> dict:
-    """What the candidate sees: feedback and career direction, not the hiring decision
-    or HR-facing weaknesses."""
+    # candidate doesn't see the recommendation or weaknesses
     matching = [f for f in report["role_fit"] if f["category"] in (BEST_FIT, SUITABLE, TRAINING)]
     applied = next(f for f in report["role_fit"] if f["role_id"] == report["applied_role_id"])
     return {

@@ -1,4 +1,3 @@
-// Full report for the hiring team.
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '../api'
 import RoleFitLadder from '../components/RoleFitLadder.jsx'

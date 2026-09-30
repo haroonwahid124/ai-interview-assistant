@@ -1,11 +1,4 @@
-"""
-AssemblyAI Voice Agent tokens.
-
-The browser can't be given our real API key, and browsers can't set an
-Authorization header on a WebSocket. So the server asks AssemblyAI for a
-short-lived, single-use token and hands only that to the browser, which
-passes it as ?token=... when it opens the socket.
-"""
+# the browser gets a temporary token instead of our real API key
 import requests
 
 from app.config import settings
@@ -18,12 +11,8 @@ class VoiceProviderError(RuntimeError):
 
 
 def get_voice_agent_token(expires_in_seconds: int = 120, max_session_duration_seconds: int | None = None) -> str:
-    """
-    expires_in_seconds: how long the browser has to *open* the socket.
-    max_session_duration_seconds: hard cap on the whole conversation.
-    """
     if settings.assemblyai_ws_url.startswith(("ws://localhost", "ws://127.0.0.1")):
-        return "local-dev-token"  # tools/fake_voice_agent.py doesn't check tokens
+        return "local-dev-token"  # fake agent doesn't check it
 
     if not settings.assemblyai_api_key:
         raise VoiceProviderError("ASSEMBLYAI_API_KEY is not set on the server.")

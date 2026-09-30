@@ -1,8 +1,3 @@
-/*
-  Design tokens. One typeface (Public Sans, a plain, legible public-service face
-  that suits hiring paperwork), a cool neutral base, and a four-step fit scale
-  that is reused everywhere a verdict appears.
-*/
 :root {
   --ink: #18233a;
   --muted: #5b6577;
@@ -53,7 +48,7 @@ code { font-size: .9em; background: #e7ebf1; padding: .05rem .3rem; border-radiu
   clip: rect(0 0 0 0); white-space: nowrap;
 }
 
-/* ---------- shell ---------- */
+/* layout */
 .topbar { background: var(--surface); border-bottom: 1px solid var(--rule); }
 .topbar-inner {
   max-width: var(--measure); margin: 0 auto; padding: .9rem 1.25rem;
@@ -63,7 +58,7 @@ code { font-size: .9em; background: #e7ebf1; padding: .05rem .3rem; border-radiu
 .topbar-note { color: var(--muted); font-size: .9rem; }
 .page { max-width: var(--measure); margin: 0 auto; padding: 2rem 1.25rem 4rem; }
 
-/* ---------- panels ---------- */
+/* panels */
 .panel {
   background: var(--surface);
   border: 1px solid var(--rule);
@@ -78,7 +73,7 @@ code { font-size: .9em; background: #e7ebf1; padding: .05rem .3rem; border-radiu
 .two-col .panel { margin: 0 0 1.25rem; }
 @media (max-width: 760px) { .two-col { grid-template-columns: 1fr; } }
 
-/* ---------- controls ---------- */
+/* buttons + inputs */
 button, .button {
   font: inherit; font-weight: 500;
   display: inline-block;
@@ -133,7 +128,7 @@ input[type="checkbox"] { width: 1.1rem; height: 1.1rem; accent-color: var(--acti
   padding: .6rem .9rem; border-radius: var(--radius-control); font-size: .9rem;
 }
 
-/* ---------- dashboard ---------- */
+/* dashboard */
 .invite { border-top: 4px solid var(--action); }
 .link-box { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--rule); }
 .link-row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; }
@@ -178,7 +173,7 @@ td.actions { text-align: right; white-space: nowrap; }
   .skill-grid-row > :first-child { grid-column: 1 / -1; }
 }
 
-/* ---------- interview room ---------- */
+/* interview room */
 .room { max-width: 44rem; }
 .lead { font-size: 1.1rem; color: var(--muted); }
 .checklist { padding-left: 1.2rem; }
@@ -192,8 +187,7 @@ td.actions { text-align: right; white-space: nowrap; }
 .call { display: flex; flex-direction: column; align-items: center; text-align: center; }
 .call .transcript-panel { width: 100%; text-align: left; margin-top: 2rem; }
 
-/* The presence orb: the one animated element in the app.
-   Blue when the interviewer talks, green when you do, still otherwise. */
+/* orb: blue = interviewer talking, green = candidate */
 .presence { position: relative; width: 9rem; height: 9rem; margin: 1.5rem 0 1rem; }
 .presence-core, .presence-ring { position: absolute; inset: 0; border-radius: 50%; }
 .presence-core { inset: 1.75rem; background: var(--rule); transition: background-color .25s ease, transform .25s ease; }
@@ -222,7 +216,7 @@ summary { cursor: pointer; font-weight: 600; }
 
 .room-finished { max-width: 36rem; padding-top: 2rem; }
 
-/* ---------- reports ---------- */
+/* reports */
 .report-head {
   display: flex; justify-content: space-between; align-items: flex-end; gap: 1.5rem; flex-wrap: wrap;
   margin-bottom: 1.5rem;
@@ -243,7 +237,7 @@ summary { cursor: pointer; font-weight: 600; }
 .score-fill { display: block; height: 100%; background: var(--ink); border-radius: 999px; }
 .evidence { grid-column: 2; font-size: .9rem; color: var(--muted); }
 
-/* Role-fit ladder: the signature element of the reports. */
+/* role fit */
 .ladder { list-style: none; padding: 0; margin: 1rem 0 0; }
 .ladder-row { margin: 0; padding: .9rem 0; border-top: 1px solid #e8ecf1; --tone: var(--tone-neutral); }
 .ladder-row:first-child { border-top: none; padding-top: .25rem; }
